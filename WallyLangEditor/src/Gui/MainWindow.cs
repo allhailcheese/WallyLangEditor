@@ -1,5 +1,5 @@
 using System.Numerics;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Raylib_cs;
 using rlImGui_cs;
 using WallyLangEditor.Logging;
@@ -37,7 +37,7 @@ public sealed class MainWindow(PathPreferences pathPrefs)
 
         Rl.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.MaximizedWindow);
         Rl.InitWindow(INITIAL_SCREEN_WIDTH, INITIAL_SCREEN_HEIGHT, WINDOW_NAME);
-        Rl.MaximizeWindow(); // why is the config flag not working smh
+        Rl.MaximizeWindow();
 
         Rl.SetExitKey(KeyboardKey.Null);
         rlImGui.Setup(true, false);
@@ -51,6 +51,7 @@ public sealed class MainWindow(PathPreferences pathPrefs)
         Rl.BeginDrawing();
         Rl.ClearBackground(RlColor.Black);
         rlImGui.Begin();
+        ImGui.PushFont(Style.Font, 0);
 
         ImGuiViewportPtr viewport = ImGui.GetMainViewport();
         ImGui.SetNextWindowViewport(viewport.ID);
@@ -66,9 +67,9 @@ public sealed class MainWindow(PathPreferences pathPrefs)
         ImGui.EndChild();
         ImGui.PopStyleVar();
         ImGui.End();
-
         Rl.EndMode2D();
         Rl.EndTextureMode();
+        ImGui.PopFont();
         rlImGui.End();
         Rl.EndDrawing();
     }

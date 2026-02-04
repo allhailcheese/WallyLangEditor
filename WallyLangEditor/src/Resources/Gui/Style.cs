@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
-using ImGuiNET;
+using System.Runtime.InteropServices;
+using Hexa.NET.ImGui;
 
 namespace WallyLangEditor.Resources.Gui;
 
@@ -10,6 +11,8 @@ public static class Style
 
     public static void Apply()
     {
+        Font = LoadEmbeddedFont("WallyLangEditor.res.fonts.NotoSans-VariableFont_wdth,wght.ttf");
+
         if (!File.Exists("imgui.ini"))
         {
             Rl.TraceLog(Raylib_cs.TraceLogLevel.Info, "Loading default imgui.ini");
@@ -111,5 +114,19 @@ public static class Style
         }
 
         ImGui.LoadIniSettingsFromMemory(iniFile);
+    }
+
+    private static unsafe ImFontPtr LoadEmbeddedFont(string resourceName)
+    {
+        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+        if (stream is null) return ImFontPtr.Null;
+
+        using MemoryStream ms = new();
+        stream.CopyTo(ms);
+        byte[] bytes = ms.ToArray();
+
+        nint fontDataPtr = GCHandle.Alloc(bytes, GCHandleType.Pinned).AddrOfPinnedObject();
+        ImFontPtr font = ImGui.GetIO().Fonts.AddFontFromMemoryTTF(fontDataPtr.ToPointer(), bytes.Length, 16);
+        return font;
     }
 }
