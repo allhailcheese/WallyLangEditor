@@ -6,6 +6,8 @@ namespace WallyLangEditor.Resources.Gui;
 
 public static class Style
 {
+    public static ImFontPtr Font { get; private set; }
+
     public static void Apply()
     {
         if (!File.Exists("imgui.ini"))

@@ -99,6 +99,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
         ImGui.Spacing();
 
+        ImGui.BeginChild("##table", new(0, ImGui.GetWindowHeight() * 0.83f));
         if (ImGui.BeginTable("##entries", 2, ImGuiTableFlags.SizingFixedFit))
         {
             ImGui.TableNextColumn();
@@ -122,7 +123,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
                 ImGui.Text(key);
                 ImGui.TableNextColumn();
 
-                if (ImGui.InputTextMultiline("##text", ref text, maxTextLength, new(MainWindow.INITIAL_SCREEN_WIDTH * 0.6f, 60)))
+                if (ImGui.InputTextMultiline("##text", ref text, maxTextLength, new(ImGui.GetWindowWidth() * 0.6f, 60)))
                 {
                     _langEntries[i] = new(key, text);
                 }
@@ -132,6 +133,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
             ImGui.EndTable();
         }
+        ImGui.EndChild();
     }
 
     private async Task LoadLang()
