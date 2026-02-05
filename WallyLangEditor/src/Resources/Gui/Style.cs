@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -138,10 +139,13 @@ public static class Style
 
             using MemoryStream ms = new();
             stream.CopyTo(ms);
-            byte[] bytes = ms.ToArray();
+            stream.Dispose();
 
-            nint fontDataPtr = GCHandle.Alloc(bytes, GCHandleType.Pinned).AddrOfPinnedObject();
-            ImGui.GetIO().Fonts.AddFontFromMemoryTTF(fontDataPtr.ToPointer(), bytes.Length, 16, &config);
+            byte[] fontDataBuffer = ms.GetBuffer();
+            fixed (byte* fontDataPtr = fontDataBuffer)
+            {
+                ImGui.GetIO().Fonts.AddFontFromMemoryTTF(fontDataPtr, fontDataBuffer.Length, 16, &config);
+            }
 
             config.MergeMode = 1;
         }
