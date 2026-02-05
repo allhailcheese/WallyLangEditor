@@ -126,7 +126,6 @@ public static class Style
     {
         ImFontConfig config = new()
         {
-            FontDataOwnedByAtlas = 1,
             GlyphMaxAdvanceX = float.MaxValue,
             RasterizerMultiply = 1.0f,
             RasterizerDensity = 1.0f,
