@@ -125,6 +125,7 @@ public static class Style
     {
         ImFontConfig config = new()
         {
+            // The library doesn't initialize these properly
             GlyphMaxAdvanceX = float.MaxValue,
             RasterizerMultiply = 1.0f,
             RasterizerDensity = 1.0f,
