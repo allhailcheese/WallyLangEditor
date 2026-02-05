@@ -51,7 +51,6 @@ public sealed class MainWindow(PathPreferences pathPrefs)
         Rl.BeginDrawing();
         Rl.ClearBackground(RlColor.Black);
         rlImGui.Begin();
-        ImGui.PushFont(Style.Font, 0);
 
         ImGuiViewportPtr viewport = ImGui.GetMainViewport();
         ImGui.SetNextWindowViewport(viewport.ID);
@@ -67,9 +66,9 @@ public sealed class MainWindow(PathPreferences pathPrefs)
         ImGui.EndChild();
         ImGui.PopStyleVar();
         ImGui.End();
+
         Rl.EndMode2D();
         Rl.EndTextureMode();
-        ImGui.PopFont();
         rlImGui.End();
         Rl.EndDrawing();
     }

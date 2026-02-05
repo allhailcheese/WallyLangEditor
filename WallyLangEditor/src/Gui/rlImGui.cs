@@ -48,13 +48,6 @@ public static class rlImGui
     internal static bool ImGuiIsAltDown() { return Rl.IsKeyDown(KeyboardKey.RightAlt) || Rl.IsKeyDown(KeyboardKey.LeftAlt); }
     internal static bool ImGuiIsSuperDown() { return Rl.IsKeyDown(KeyboardKey.RightSuper) || Rl.IsKeyDown(KeyboardKey.LeftSuper); }
 
-    public delegate void SetupUserFontsCallback(ImGuiIOPtr imGuiIo);
-
-    /// <summary>
-    /// Callback for cases where the user wants to install additional fonts.
-    /// </summary>
-    public static SetupUserFontsCallback? SetupUserFonts { get; set; } = null;
-
     /// <summary>
     /// Sets up ImGui, loads fonts and themes
     /// </summary>
@@ -251,8 +244,6 @@ public static class rlImGui
 
         ImGuiIOPtr io = ImGui.GetIO();
         ImGuiPlatformIOPtr platformIO = ImGui.GetPlatformIO();
-
-        SetupUserFonts?.Invoke(io);
 
         io.BackendFlags |= ImGuiBackendFlags.RendererHasTextures | ImGuiBackendFlags.HasMouseCursors | ImGuiBackendFlags.HasSetMousePos | ImGuiBackendFlags.HasGamepad;
 
@@ -491,24 +482,20 @@ public static class rlImGui
         Rlgl.Vertex2f(idx_vert.Pos.X, idx_vert.Pos.Y);
     }
 
-    private static void RenderTriangles(uint count, uint indexStart, ImVector<ushort> indexBuffer, ImVector<ImDrawVert> vertBuffer, IntPtr texturePtr)
+    private static void RenderTriangles(uint count, uint indexStart, ImVector<ushort> indexBuffer, ImVector<ImDrawVert> vertBuffer, ImTextureID textureId)
     {
         if (count < 3)
             return;
 
-        uint textureId = 0;
-        if (texturePtr != IntPtr.Zero)
-            textureId = (uint)texturePtr.ToInt32();
-
         Rlgl.Begin(DrawMode.Triangles);
-        Rlgl.SetTexture(textureId);
+        Rlgl.SetTexture((uint)textureId);
 
         for (int i = 0; i <= (count - 3); i += 3)
         {
             if (Rlgl.CheckRenderBatchLimit(3))
             {
                 Rlgl.Begin(DrawMode.Triangles);
-                Rlgl.SetTexture(textureId);
+                Rlgl.SetTexture((uint)textureId);
             }
 
             ushort indexA = indexBuffer[(int)indexStart + i];
@@ -533,7 +520,7 @@ public static class rlImGui
 
         ImDrawDataPtr data = ImGui.GetDrawData();
 
-        foreach (ImTextureDataPtr textureDataPtr in ImVectorToSpan(data.Textures))
+        foreach (ImTextureDataPtr textureDataPtr in data.Textures.AsSpan())
         {
             if (textureDataPtr.Status != ImTextureStatus.Ok)
             {
@@ -541,9 +528,9 @@ public static class rlImGui
             }
         }
 
-        foreach (ImDrawListPtr commandList in ImVectorToSpan(data.CmdLists))
+        foreach (ImDrawListPtr commandList in data.CmdLists.AsSpan())
         {
-            foreach (ImDrawCmd cmd in ImVectorToSpan(commandList.CmdBuffer))
+            foreach (ImDrawCmd cmd in commandList.CmdBuffer.AsSpan())
             {
                 EnableScissor(cmd.ClipRect.X - data.DisplayPos.X, cmd.ClipRect.Y - data.DisplayPos.Y, cmd.ClipRect.Z - (cmd.ClipRect.X - data.DisplayPos.X), cmd.ClipRect.W - (cmd.ClipRect.Y - data.DisplayPos.Y));
 
@@ -570,7 +557,7 @@ public static class rlImGui
         PixelFormat rlTexFormat = tex.Format switch
         {
             ImTextureFormat.Rgba32 => PixelFormat.UncompressedR8G8B8A8,
-            ImTextureFormat.Alpha8 => PixelFormat.UncompressedGrayAlpha,
+            ImTextureFormat.Alpha8 => PixelFormat.UncompressedGrayscale,
             _ => 0,
         };
 
@@ -579,22 +566,14 @@ public static class rlImGui
             // Create texture based on tex->Width, tex->Height.
             // - Most backends only support tex->Format == ImTextureFormat_RGBA32.
             // - Backends for particularly memory constrainted platforms may support tex->Format == ImTextureFormat_Alpha8.
-            RlImage image = new()
-            {
-                Data = tex.Pixels,
-                Width = tex.Width,
-                Height = tex.Height,
-                Mipmaps = 1,
-                Format = rlTexFormat,
-            };
 
             // Upload all texture pixels
             // - Read from our CPU-side copy of the texture and copy to your graphics API.
             // - Use tex->Width, tex->Height, tex->GetPixels(), tex->GetPixelsAt(), tex->GetPitch() as needed.
-            Texture2D rlTexture = Rl.LoadTextureFromImage(image);
+            uint texId = Rlgl.LoadTexture(tex.Pixels, tex.Width, tex.Height, rlTexFormat, 1);
 
             // Store your data, and acknowledge creation.
-            tex.SetTexID(rlTexture.Id); // Specify backend-specific ImTextureID identifier which will be stored in ImDrawCmd.
+            tex.SetTexID(texId); // Specify backend-specific ImTextureID identifier which will be stored in ImDrawCmd.
             tex.SetStatus(ImTextureStatus.Ok);
             // tex.BackendUserData = xxxx; // Store more backend data if needed (most backend allocate a small texture to store data in there)
         }
@@ -608,7 +587,8 @@ public static class rlImGui
             // - Read from our CPU-side copy of the texture and copy to your graphics API.
             // - Use tex->Width, tex->Height, tex->GetPixels(), tex->GetPixelsAt(), tex->GetPitch() as needed.
             Rlgl.UpdateTexture((uint)tex.TexID, 0, 0, tex.Width, tex.Height, rlTexFormat, tex.Pixels);
-            // this should be better but it doesn't work
+
+            // TODO: Update only the parts that change
             /*
             foreach (ImTextureRect rect in ImVectorToSpan(tex.Updates))
                 Rlgl.UpdateTexture((uint)tex.TexID, rect.X, rect.Y, rect.W, rect.H, rlTexFormat, tex.GetPixelsAt(rect.X, rect.Y));
@@ -632,7 +612,7 @@ public static class rlImGui
         }
     }
 
-    private static unsafe ReadOnlySpan<T> ImVectorToSpan<T>(ImVector<T> vector) where T : unmanaged
+    private static unsafe ReadOnlySpan<T> AsSpan<T>(this ImVector<T> vector) where T : unmanaged
     {
         return new(vector.Data, vector.Size);
     }
@@ -652,7 +632,7 @@ public static class rlImGui
     /// </summary>
     public static void Shutdown()
     {
-        ImGui.DestroyContext();
+        ImGui.DestroyContext(ImGuiContext);
     }
 
     /// <summary>

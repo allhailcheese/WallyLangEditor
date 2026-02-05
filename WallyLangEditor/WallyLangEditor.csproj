@@ -23,8 +23,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="./res/imgui/default_imgui.ini" />
-    <EmbeddedResource Include="./res/fonts/NotoSans-VariableFont_wdth,wght.ttf" />
+    <EmbeddedResource Include=".\res\imgui\default_imgui.ini" />
+    <EmbeddedResource Include=".\res\fonts\NotoSans-VariableFont_wdth,wght.ttf" />
+    <EmbeddedResource Include=".\res\fonts\NotoSansJP-Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\NotoSansKR-Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\NotoSansSC-Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\NotoSansTC-Regular.ttf" />
   </ItemGroup>
 
   <ItemGroup>

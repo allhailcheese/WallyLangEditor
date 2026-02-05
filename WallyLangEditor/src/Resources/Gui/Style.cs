@@ -7,11 +7,17 @@ namespace WallyLangEditor.Resources.Gui;
 
 public static class Style
 {
-    public static ImFontPtr Font { get; private set; }
+    private static readonly string[] FONT_PATHS = [
+        "WallyLangEditor.res.fonts.NotoSans-VariableFont_wdth,wght.ttf",
+        "WallyLangEditor.res.fonts.NotoSansJP-Regular.ttf",
+        "WallyLangEditor.res.fonts.NotoSansKR-Regular.ttf",
+        "WallyLangEditor.res.fonts.NotoSansSC-Regular.ttf",
+        "WallyLangEditor.res.fonts.NotoSansTC-Regular.ttf",
+    ];
 
     public static void Apply()
     {
-        Font = LoadEmbeddedFont("WallyLangEditor.res.fonts.NotoSans-VariableFont_wdth,wght.ttf");
+        LoadEmbeddedFonts();
 
         if (!File.Exists("imgui.ini"))
         {
@@ -116,17 +122,29 @@ public static class Style
         ImGui.LoadIniSettingsFromMemory(iniFile);
     }
 
-    private static unsafe ImFontPtr LoadEmbeddedFont(string resourceName)
+    private static unsafe void LoadEmbeddedFonts()
     {
-        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-        if (stream is null) return ImFontPtr.Null;
+        ImFontConfig config = new()
+        {
+            FontDataOwnedByAtlas = 1,
+            GlyphMaxAdvanceX = float.MaxValue,
+            RasterizerMultiply = 1.0f,
+            RasterizerDensity = 1.0f,
+        };
 
-        using MemoryStream ms = new();
-        stream.CopyTo(ms);
-        byte[] bytes = ms.ToArray();
+        foreach (string resourceName in FONT_PATHS)
+        {
+            using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+            if (stream is null) continue;
 
-        nint fontDataPtr = GCHandle.Alloc(bytes, GCHandleType.Pinned).AddrOfPinnedObject();
-        ImFontPtr font = ImGui.GetIO().Fonts.AddFontFromMemoryTTF(fontDataPtr.ToPointer(), bytes.Length, 16);
-        return font;
+            using MemoryStream ms = new();
+            stream.CopyTo(ms);
+            byte[] bytes = ms.ToArray();
+
+            nint fontDataPtr = GCHandle.Alloc(bytes, GCHandleType.Pinned).AddrOfPinnedObject();
+            ImGui.GetIO().Fonts.AddFontFromMemoryTTF(fontDataPtr.ToPointer(), bytes.Length, 16, &config);
+
+            config.MergeMode = 1;
+        }
     }
 }
