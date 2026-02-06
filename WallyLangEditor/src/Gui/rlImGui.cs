@@ -9,9 +9,9 @@
 *
 *   Copyright (c) 2021 Jeffery Myers
 *
+*   NOTE: This has been modified to use a different version of ImGui .NET bindings 
+*         (Hexa.NET.ImGui) but a majority of this code is the same as the orginal.
 ********************************************************************************************/
-
-// Modified by AllHailCheese 2026 to fit with code conventions and use a different C# ImGui library.
 
 using System;
 using System.Collections.Generic;
@@ -33,7 +33,6 @@ public static class rlImGui
 
     private static ImGuiMouseCursor CurrentMouseCursor = ImGuiMouseCursor.Count;
     private static readonly Dictionary<ImGuiMouseCursor, MouseCursor> MouseCursorMap = [];
-
     private static readonly Dictionary<KeyboardKey, ImGuiKey> RaylibKeyMap = [];
 
     internal static bool LastFrameFocused = false;
@@ -43,10 +42,10 @@ public static class rlImGui
     internal static bool LastAltPressed = false;
     internal static bool LastSuperPressed = false;
 
-    internal static bool ImGuiIsControlDown() { return Rl.IsKeyDown(KeyboardKey.RightControl) || Rl.IsKeyDown(KeyboardKey.LeftControl); }
-    internal static bool ImGuiIsShiftDown() { return Rl.IsKeyDown(KeyboardKey.RightShift) || Rl.IsKeyDown(KeyboardKey.LeftShift); }
-    internal static bool ImGuiIsAltDown() { return Rl.IsKeyDown(KeyboardKey.RightAlt) || Rl.IsKeyDown(KeyboardKey.LeftAlt); }
-    internal static bool ImGuiIsSuperDown() { return Rl.IsKeyDown(KeyboardKey.RightSuper) || Rl.IsKeyDown(KeyboardKey.LeftSuper); }
+    internal static bool rlImGuiIsControlDown() { return Rl.IsKeyDown(KeyboardKey.RightControl) || Rl.IsKeyDown(KeyboardKey.LeftControl); }
+    internal static bool rlImGuiIsShiftDown() { return Rl.IsKeyDown(KeyboardKey.RightShift) || Rl.IsKeyDown(KeyboardKey.LeftShift); }
+    internal static bool rlImGuiIsAltDown() { return Rl.IsKeyDown(KeyboardKey.RightAlt) || Rl.IsKeyDown(KeyboardKey.LeftAlt); }
+    internal static bool rlImGuiIsSuperDown() { return Rl.IsKeyDown(KeyboardKey.RightSuper) || Rl.IsKeyDown(KeyboardKey.LeftSuper); }
 
     /// <summary>
     /// Sets up ImGui, loads fonts and themes
@@ -214,12 +213,12 @@ public static class rlImGui
         MouseCursorMap[ImGuiMouseCursor.NotAllowed] = MouseCursor.NotAllowed;
     }
 
-    unsafe internal static sbyte* ImGuiGetClipText(IntPtr userData)
+    unsafe internal static sbyte* rImGuiGetClipText(IntPtr userData)
     {
         return Rl.GetClipboardText();
     }
 
-    unsafe internal static void ImGuiSetClipText(IntPtr userData, sbyte* text)
+    unsafe internal static void rlImGuiSetClipText(IntPtr userData, sbyte* text)
     {
         Rl.SetClipboardText(text);
     }
@@ -227,8 +226,8 @@ public static class rlImGui
     private unsafe delegate sbyte* GetClipTextCallback(IntPtr userData);
     private unsafe delegate void SetClipTextCallback(IntPtr userData, sbyte* text);
 
-    private static GetClipTextCallback? GetClipCallback = null;
-    private static SetClipTextCallback? SetClipCallback = null;
+    private static unsafe readonly GetClipTextCallback _GetClipTextCallback = new(rImGuiGetClipText);
+    private static unsafe readonly SetClipTextCallback _SetClipTextCallback = new(rlImGuiSetClipText);
 
     /// <summary>
     /// End Custom initialization. Not needed if you call Setup. Only needed if you want to add custom setup code.
@@ -253,12 +252,8 @@ public static class rlImGui
         // copy/paste callbacks
         unsafe
         {
-            SetClipCallback = new SetClipTextCallback(ImGuiSetClipText);
-            platformIO.PlatformSetClipboardTextFn = (void*)Marshal.GetFunctionPointerForDelegate(SetClipCallback);
-
-            GetClipCallback = new GetClipTextCallback(ImGuiGetClipText);
-            platformIO.PlatformGetClipboardTextFn = (void*)Marshal.GetFunctionPointerForDelegate(GetClipCallback);
-
+            platformIO.PlatformSetClipboardTextFn = (void*)Marshal.GetFunctionPointerForDelegate(_SetClipTextCallback);
+            platformIO.PlatformGetClipboardTextFn = (void*)Marshal.GetFunctionPointerForDelegate(_GetClipTextCallback);
             platformIO.PlatformClipboardUserData = null;
         }
     }
@@ -312,11 +307,11 @@ public static class rlImGui
 
         if ((io.ConfigFlags & ImGuiConfigFlags.NoMouseCursorChange) == 0)
         {
-            ImGuiMouseCursor imgui_cursor = ImGui.GetMouseCursor();
-            if (imgui_cursor != CurrentMouseCursor || io.MouseDrawCursor)
+            ImGuiMouseCursor imCursor = ImGui.GetMouseCursor();
+            if (imCursor != CurrentMouseCursor || io.MouseDrawCursor)
             {
-                CurrentMouseCursor = imgui_cursor;
-                if (io.MouseDrawCursor || imgui_cursor == ImGuiMouseCursor.None)
+                CurrentMouseCursor = imCursor;
+                if (io.MouseDrawCursor || imCursor == ImGuiMouseCursor.None)
                 {
                     Rl.HideCursor();
                 }
@@ -326,11 +321,7 @@ public static class rlImGui
 
                     if ((io.ConfigFlags & ImGuiConfigFlags.NoMouseCursorChange) == 0)
                     {
-
-                        if (!MouseCursorMap.TryGetValue(imgui_cursor, out MouseCursor value))
-                            Rl.SetMouseCursor(MouseCursor.Default);
-                        else
-                            Rl.SetMouseCursor(value);
+                        Rl.SetMouseCursor(MouseCursorMap.GetValueOrDefault(imCursor, MouseCursor.Default));
                     }
                 }
             }
@@ -348,22 +339,22 @@ public static class rlImGui
 
 
         // handle the modifyer key events so that shortcuts work
-        bool ctrlDown = ImGuiIsControlDown();
+        bool ctrlDown = rlImGuiIsControlDown();
         if (ctrlDown != LastControlPressed)
             io.AddKeyEvent(ImGuiKey.ModCtrl, ctrlDown);
         LastControlPressed = ctrlDown;
 
-        bool shiftDown = ImGuiIsShiftDown();
+        bool shiftDown = rlImGuiIsShiftDown();
         if (shiftDown != LastShiftPressed)
             io.AddKeyEvent(ImGuiKey.ModShift, shiftDown);
         LastShiftPressed = shiftDown;
 
-        bool altDown = ImGuiIsAltDown();
+        bool altDown = rlImGuiIsAltDown();
         if (altDown != LastAltPressed)
             io.AddKeyEvent(ImGuiKey.ModAlt, altDown);
         LastAltPressed = altDown;
 
-        bool superDown = ImGuiIsSuperDown();
+        bool superDown = rlImGuiIsSuperDown();
         if (superDown != LastSuperPressed)
             io.AddKeyEvent(ImGuiKey.ModSuper, superDown);
         LastSuperPressed = superDown;
@@ -488,14 +479,14 @@ public static class rlImGui
             return;
 
         Rlgl.Begin(DrawMode.Triangles);
-        Rlgl.SetTexture((uint)textureId);
+        Rlgl.SetTexture((uint)(nuint)textureId);
 
         for (int i = 0; i <= (count - 3); i += 3)
         {
             if (Rlgl.CheckRenderBatchLimit(3))
             {
                 Rlgl.Begin(DrawMode.Triangles);
-                Rlgl.SetTexture((uint)textureId);
+                Rlgl.SetTexture((uint)(nuint)textureId);
             }
 
             ushort indexA = indexBuffer[(int)indexStart + i];
@@ -533,7 +524,6 @@ public static class rlImGui
             foreach (ImDrawCmd cmd in commandList.CmdBuffer.AsSpan())
             {
                 EnableScissor(cmd.ClipRect.X - data.DisplayPos.X, cmd.ClipRect.Y - data.DisplayPos.Y, cmd.ClipRect.Z - (cmd.ClipRect.X - data.DisplayPos.X), cmd.ClipRect.W - (cmd.ClipRect.Y - data.DisplayPos.Y));
-
                 if (cmd.UserCallback is not null)
                 {
                     ImDrawCallback cb = Marshal.GetDelegateForFunctionPointer<ImDrawCallback>((nint)cmd.UserCallback);
@@ -760,6 +750,17 @@ public static class rlImGui
     }
 
     /// <summary>
+    /// Draws a texture as an image button in an ImGui context. Uses the current ImGui cursor position and the full size of the texture
+    /// </summary>
+    /// <param name="name">The display name and ImGui ID for the button</param>
+    /// <param name="image">The texture to draw</param>
+    /// <returns>True if the button was clicked</returns>
+    public static bool ImageButton(ReadOnlySpan<byte> name, Texture2D image)
+    {
+        return ImageButtonSize(name, image, new(image.Width, image.Height));
+    }
+
+    /// <summary>
     /// Draws a texture as an image button in an ImGui context. Uses the current ImGui cursor position and the specified size.
     /// </summary>
     /// <param name="name">The display name and ImGui ID for the button</param>
@@ -767,6 +768,18 @@ public static class rlImGui
     /// <param name="size">The size of the button/param>
     /// <returns>True if the button was clicked</returns>
     public static unsafe bool ImageButtonSize(string name, Texture2D image, Vector2 size)
+    {
+        return ImGui.ImageButton(name, new(null, image.Id), size);
+    }
+
+    /// <summary>
+    /// Draws a texture as an image button in an ImGui context. Uses the current ImGui cursor position and the specified size.
+    /// </summary>
+    /// <param name="name">The display name and ImGui ID for the button</param>
+    /// <param name="image">The texture to draw</param>
+    /// <param name="size">The size of the button/param>
+    /// <returns>True if the button was clicked</returns>
+    public static unsafe bool ImageButtonSize(ReadOnlySpan<byte> name, Texture2D image, Vector2 size)
     {
         return ImGui.ImageButton(name, new(null, image.Id), size);
     }
