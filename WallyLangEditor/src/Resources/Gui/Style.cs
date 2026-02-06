@@ -7,11 +7,12 @@ namespace WallyLangEditor.Resources.Gui;
 public static class Style
 {
     private static readonly string[] FONT_PATHS = [
-        "WallyLangEditor.res.fonts.NotoSans-VariableFont_wdth,wght.ttf",
-        "WallyLangEditor.res.fonts.NotoSansJP-Regular.ttf",
-        "WallyLangEditor.res.fonts.NotoSansKR-Regular.ttf",
-        "WallyLangEditor.res.fonts.NotoSansSC-Regular.ttf",
-        "WallyLangEditor.res.fonts.NotoSansTC-Regular.ttf",
+        "WallyLangEditor.res.fonts.1_LatinSlimMedium_BMG Author Medium.ttf",
+        "WallyLangEditor.res.fonts.2_Russian_BMGRussianSlim Regular.ttf",
+        "WallyLangEditor.res.fonts.1_ChineseSimplified_DFPYuanW7-A Regular.ttf",
+        "WallyLangEditor.res.fonts.1_ChineseTraditional_DFPYuanMXBold-B5 Regular.ttf",
+        "WallyLangEditor.res.fonts.1_Japanese_DFGGothic-EB Regular.ttf",
+        "WallyLangEditor.res.fonts.1_Korean_BMGKorean Regular.ttf",
     ];
 
     public static void Apply()

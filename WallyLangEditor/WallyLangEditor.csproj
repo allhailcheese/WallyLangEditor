@@ -24,11 +24,12 @@
 
   <ItemGroup>
     <EmbeddedResource Include=".\res\imgui\default_imgui.ini" />
-    <EmbeddedResource Include=".\res\fonts\NotoSans-VariableFont_wdth,wght.ttf" />
-    <EmbeddedResource Include=".\res\fonts\NotoSansJP-Regular.ttf" />
-    <EmbeddedResource Include=".\res\fonts\NotoSansKR-Regular.ttf" />
-    <EmbeddedResource Include=".\res\fonts\NotoSansSC-Regular.ttf" />
-    <EmbeddedResource Include=".\res\fonts\NotoSansTC-Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\1_ChineseSimplified_DFPYuanW7-A Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\1_ChineseTraditional_DFPYuanMXBold-B5 Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\1_Japanese_DFGGothic-EB Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\1_Korean_BMGKorean Regular.ttf" />
+    <EmbeddedResource Include=".\res\fonts\1_LatinSlimMedium_BMG Author Medium.ttf" />
+    <EmbeddedResource Include=".\res\fonts\2_Russian_BMGRussianSlim Regular.ttf" />
   </ItemGroup>
 
   <ItemGroup>
