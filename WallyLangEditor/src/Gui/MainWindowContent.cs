@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using System.Threading.Tasks;
 using BrawlhallaLangReader;
 using Hexa.NET.ImGui;
@@ -24,7 +25,9 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
     private LangEntry[]? _langEntries = null;
     private LoadingStateEnum _loadingState = LoadingStateEnum.None;
-    private string? _errorMessage = null;
+    private string? _loadErrorMessage = null;
+    private LoadingStateEnum _savingState = LoadingStateEnum.None;
+    private string? _saveErrorMessage = null;
 
     private string _filterKey = "";
     private string _filterText = "";
@@ -37,13 +40,22 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
     public void Gui()
     {
+        LoadButton();
+        SaveButton();
+        Table();
+    }
+
+    private void LoadButton()
+    {
         ImGui.BeginDisabled(_loadingState == LoadingStateEnum.Pending);
-        if (ImGui.Button("Select file"))
+        if (ImGui.Button("Select file"u8))
         {
             DialogResult result = Dialog.FileOpen("bin", pathPrefs.FilePath);
             if (result.IsOk)
             {
                 pathPrefs.FilePath = result.Path;
+                // TODO: async
+                pathPrefs.Save();
                 _ = LoadLang();
             }
         }
@@ -60,23 +72,57 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
             default:
             case LoadingStateEnum.None:
                 ImGui.SameLine();
-                ImGui.Text("Please select a file");
+                ImGui.Text("Please select a file"u8);
                 break;
             case LoadingStateEnum.Pending:
                 ImGui.SameLine();
-                ImGui.Text("Loading...");
+                ImGui.Text("Loading..."u8);
                 break;
             case LoadingStateEnum.Success:
                 break;
             case LoadingStateEnum.Error:
                 ImGui.SameLine();
-                ImGui.Text("ERROR: ");
+                ImGui.Text("Error while loading: "u8);
                 ImGui.SameLine();
-                ImGui.Text(_errorMessage);
+                ImGui.TextWrapped(_loadErrorMessage);
                 break;
         }
+    }
 
-        Table();
+    private void SaveButton()
+    {
+        ImGui.BeginDisabled(_savingState == LoadingStateEnum.Pending);
+        if (ImGui.Button("Save file"u8))
+        {
+            DialogResult result = Dialog.FileSave("bin", pathPrefs.FilePath);
+            if (result.IsOk)
+            {
+                pathPrefs.FilePath = result.Path;
+                // TODO: async
+                pathPrefs.Save();
+                _ = SaveLang();
+            }
+        }
+        ImGui.EndDisabled();
+
+        switch (_savingState)
+        {
+            default:
+            case LoadingStateEnum.None:
+                break;
+            case LoadingStateEnum.Pending:
+                ImGui.SameLine();
+                ImGui.Text("Saving..."u8);
+                break;
+            case LoadingStateEnum.Success:
+                break;
+            case LoadingStateEnum.Error:
+                ImGui.SameLine();
+                ImGui.Text("Error while saving: "u8);
+                ImGui.SameLine();
+                ImGui.TextWrapped(_saveErrorMessage);
+                break;
+        }
     }
 
     private void Table()
@@ -87,26 +133,26 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         uint maxTextLength = (uint)_langEntries.Max((s) => s.Text.Length);
 
         ImGui.SetNextItemWidth(300);
-        ImGui.InputText("Filter by string key", ref _filterKey, 256);
+        ImGui.InputText("Filter by string key"u8, ref _filterKey, 256);
 
         ImGui.Spacing();
 
         ImGui.SetNextItemWidth(300);
-        ImGui.InputText("Filter by text", ref _filterText, 256);
+        ImGui.InputText("Filter by text"u8, ref _filterText, 256);
         ImGui.SameLine();
         ImGui.Dummy(new(30, 0));
         ImGui.SameLine();
-        ImGui.Checkbox("Case sensitive", ref _filterTextCaseSensitive);
+        ImGui.Checkbox("Case sensitive"u8, ref _filterTextCaseSensitive);
 
         ImGui.Spacing();
 
-        ImGui.BeginChild("##table", new Vector2(0, ImGui.GetWindowHeight() * 0.83f));
-        if (ImGui.BeginTable("##entries", 2, ImGuiTableFlags.SizingFixedFit))
+        ImGui.BeginChild("##table"u8, new Vector2(0, ImGui.GetWindowHeight() * 0.83f));
+        if (ImGui.BeginTable("##entries"u8, 2, ImGuiTableFlags.SizingFixedFit))
         {
             ImGui.TableNextColumn();
-            ImGui.TableHeader("String Key");
+            ImGui.TableHeader("String Key"u8);
             ImGui.TableNextColumn();
-            ImGui.TableHeader("Text");
+            ImGui.TableHeader("Text"u8);
 
             for (int i = 0; i < _langEntries.Length; ++i)
             {
@@ -115,6 +161,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
                 if (!key.Contains(_filterKey, StringComparison.CurrentCultureIgnoreCase))
                     continue;
+                // TODO: this should retrigger only on change, so text editing isn't annoying
                 if (!text.Contains(_filterText, _filterTextCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
                     continue;
 
@@ -124,7 +171,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
                 ImGui.Text(key);
                 ImGui.TableNextColumn();
 
-                if (ImGui.InputTextMultiline("##text", ref text, maxTextLength, new Vector2(ImGui.GetWindowWidth() * 0.6f, 60)))
+                if (ImGui.InputTextMultiline("##text"u8, ref text, maxTextLength, new Vector2(ImGui.GetWindowWidth() * 0.6f, 60)))
                 {
                     _langEntries[i] = new(key, text);
                 }
@@ -137,22 +184,44 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         ImGui.EndChild();
     }
 
-    private async Task LoadLang()
+    private async Task LoadLang(CancellationToken cancellationToken = default)
     {
         if (pathPrefs.FilePath is not null)
         {
-            _errorMessage = null;
+            _loadErrorMessage = null;
             _loadingState = LoadingStateEnum.Pending;
             try
             {
-                LangFile langFile = await LangFile.LoadAsync(pathPrefs.FilePath);
+                LangFile langFile = await LangFile.LoadAsync(pathPrefs.FilePath, cancellationToken);
                 _langEntries = [.. langFile.Entries.Select((entry) => new LangEntry(entry.Key, entry.Value)).OrderBy((entry) => entry.Key)];
                 _loadingState = LoadingStateEnum.Success;
             }
             catch (Exception e)
             {
                 _loadingState = LoadingStateEnum.Error;
-                _errorMessage = e.Message;
+                _loadErrorMessage = e.Message;
+                Rl.TraceLog(TraceLogLevel.Error, e.Message);
+                Rl.TraceLog(TraceLogLevel.Trace, e.StackTrace);
+            }
+        }
+    }
+
+    private async Task SaveLang(CancellationToken cancellationToken = default)
+    {
+        if (pathPrefs.FilePath is not null && _langEntries is not null)
+        {
+            _saveErrorMessage = null;
+            _savingState = LoadingStateEnum.Pending;
+            try
+            {
+                LangFile langFile = new((uint)_langEntries.Length, _langEntries.ToDictionary(x => x.Key, x => x.Text));
+                await langFile.SaveAsync(pathPrefs.FilePath, cancellationToken);
+                _savingState = LoadingStateEnum.Success;
+            }
+            catch (Exception e)
+            {
+                _savingState = LoadingStateEnum.Error;
+                _saveErrorMessage = e.Message;
                 Rl.TraceLog(TraceLogLevel.Error, e.Message);
                 Rl.TraceLog(TraceLogLevel.Trace, e.StackTrace);
             }
