@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
@@ -23,7 +24,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
     private readonly record struct LangEntry(string Key, string Text);
 
-    private LangEntry[]? _langEntries = null;
+    private SortedDictionary<string, string>? _langEntries = null;
     private LoadingStateEnum _loadingState = LoadingStateEnum.None;
     private string? _loadErrorMessage = null;
     private LoadingStateEnum _savingState = LoadingStateEnum.None;
@@ -125,12 +126,15 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         }
     }
 
+    private readonly List<(string key, string text)> _tableUpdates = [];
+    private readonly List<string> _tableRemovals = [];
+
     private void Table()
     {
         if (_langEntries is null)
             return;
 
-        uint maxTextLength = (uint)_langEntries.Max((s) => s.Text.Length);
+        uint maxTextLength = (uint)_langEntries.Max((s) => s.Value.Length);
 
         ImGui.SetNextItemWidth(300);
         ImGui.InputText("Filter by string key"u8, ref _filterKey, 256);
@@ -146,19 +150,18 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
         ImGui.Spacing();
 
-        ImGui.BeginChild("##table"u8, new Vector2(0, ImGui.GetWindowHeight() * 0.83f));
-        if (ImGui.BeginTable("##entries"u8, 2, ImGuiTableFlags.SizingFixedFit))
+        ImGui.BeginChild("##table"u8, new Vector2(ImGui.GetWindowWidth(), ImGui.GetWindowHeight() * 0.83f));
+        if (ImGui.BeginTable("##entries"u8, 3, ImGuiTableFlags.SizingFixedFit))
         {
             ImGui.TableNextColumn();
             ImGui.TableHeader("String Key"u8);
             ImGui.TableNextColumn();
             ImGui.TableHeader("Text"u8);
+            ImGui.TableNextColumn();
+            ImGui.TableHeader(""u8);
 
-            for (int i = 0; i < _langEntries.Length; ++i)
+            foreach ((string key, string text) in _langEntries)
             {
-                string key = _langEntries[i].Key;
-                string text = _langEntries[i].Text;
-
                 if (!key.Contains(_filterKey, StringComparison.CurrentCultureIgnoreCase))
                     continue;
                 // TODO: this should retrigger only on change, so text editing isn't annoying
@@ -167,17 +170,37 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
                 ImGui.PushID(key);
                 ImGui.TableNextRow();
+
                 ImGui.TableNextColumn();
                 ImGui.Text(key);
-                ImGui.TableNextColumn();
 
-                if (ImGui.InputTextMultiline("##text"u8, ref text, maxTextLength, new Vector2(ImGui.GetWindowWidth() * 0.6f, 60)))
+                ImGui.TableNextColumn();
+                string text_ = text;
+                if (ImGui.InputTextMultiline("##text"u8, ref text_, maxTextLength, new Vector2(ImGui.GetWindowWidth() * 0.5f, 60)))
                 {
-                    _langEntries[i] = new(key, text);
+                    _tableUpdates.Add((key, text_));
+                }
+
+                ImGui.TableNextColumn();
+                if (ImGui.Button("Delete"u8))
+                {
+                    _tableRemovals.Add(key);
                 }
 
                 ImGui.PopID();
             }
+
+            foreach ((string key, string text) in _tableUpdates)
+            {
+                _langEntries[key] = text;
+            }
+            _tableUpdates.Clear();
+
+            foreach (string key in _tableRemovals)
+            {
+                _langEntries.Remove(key);
+            }
+            _tableRemovals.Clear();
 
             ImGui.EndTable();
         }
@@ -193,7 +216,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
             try
             {
                 LangFile langFile = await LangFile.LoadAsync(pathPrefs.FilePath, cancellationToken);
-                _langEntries = [.. langFile.Entries.Select((entry) => new LangEntry(entry.Key, entry.Value)).OrderBy((entry) => entry.Key)];
+                _langEntries = new(langFile.Entries);
                 _loadingState = LoadingStateEnum.Success;
             }
             catch (Exception e)
@@ -214,7 +237,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
             _savingState = LoadingStateEnum.Pending;
             try
             {
-                LangFile langFile = new((uint)_langEntries.Length, _langEntries.ToDictionary(x => x.Key, x => x.Text));
+                LangFile langFile = new((uint)_langEntries.Count, new(_langEntries));
                 await langFile.SaveAsync(pathPrefs.FilePath, cancellationToken);
                 _savingState = LoadingStateEnum.Success;
             }
