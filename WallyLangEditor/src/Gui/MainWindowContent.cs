@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +13,7 @@ namespace WallyLangEditor.Gui;
 
 public sealed class MainWindowContent(PathPreferences pathPrefs)
 {
+    private const uint maxTextLength = 4096;
     private enum LoadingStateEnum
     {
         None,
@@ -22,17 +22,11 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         Error,
     }
 
-    private readonly record struct LangEntry(string Key, string Text);
-
     private SortedDictionary<string, string>? _langEntries = null;
     private LoadingStateEnum _loadingState = LoadingStateEnum.None;
     private string? _loadErrorMessage = null;
     private LoadingStateEnum _savingState = LoadingStateEnum.None;
     private string? _saveErrorMessage = null;
-
-    private string _filterKey = "";
-    private string _filterText = "";
-    private bool _filterTextCaseSensitive = false;
 
     public void Setup()
     {
@@ -41,9 +35,30 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
     public void Gui()
     {
-        LoadButton();
-        SaveButton();
-        Table();
+        if (ImGui.TreeNodeEx("Saving&Loading"u8, _langEntries is null ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None))
+        {
+            LoadButton();
+            SaveButton();
+            ImGui.TreePop();
+        }
+
+        if (ImGui.TreeNode("Filters"u8))
+        {
+            Filters();
+            ImGui.TreePop();
+        }
+
+        if (ImGui.TreeNode("Add new entry"u8))
+        {
+            AddNewEntry();
+            ImGui.TreePop();
+        }
+
+        if (ImGui.TreeNodeEx("Entries table"u8, ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            Table();
+            ImGui.TreePop();
+        }
     }
 
     private void LoadButton()
@@ -126,16 +141,11 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         }
     }
 
-    private readonly List<(string key, string text)> _tableUpdates = [];
-    private readonly List<string> _tableRemovals = [];
-
-    private void Table()
+    private string _filterKey = "";
+    private string _filterText = "";
+    private bool _filterTextCaseSensitive = false;
+    private void Filters()
     {
-        if (_langEntries is null)
-            return;
-
-        uint maxTextLength = (uint)_langEntries.Max((s) => s.Value.Length);
-
         ImGui.SetNextItemWidth(300);
         ImGui.InputText("Filter by string key"u8, ref _filterKey, 256);
 
@@ -147,8 +157,33 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         ImGui.Dummy(new(30, 0));
         ImGui.SameLine();
         ImGui.Checkbox("Case sensitive"u8, ref _filterTextCaseSensitive);
+    }
 
-        ImGui.Spacing();
+    private string _newKey = "";
+    private string _newText = "";
+    private void AddNewEntry()
+    {
+        if (_langEntries is null)
+            return;
+
+        ImGui.InputText("Key"u8, ref _newKey, 256);
+        ImGui.InputTextMultiline("Text"u8, ref _newText, maxTextLength);
+        ImGui.BeginDisabled(string.IsNullOrWhiteSpace(_newKey));
+        if (ImGui.Button("Add"u8))
+        {
+            _langEntries[_newKey] = _newText;
+            _newKey = "";
+            _newText = "";
+        }
+        ImGui.EndDisabled();
+    }
+
+    private readonly List<(string key, string text)> _tableUpdates = [];
+    private readonly List<string> _tableRemovals = [];
+    private void Table()
+    {
+        if (_langEntries is null)
+            return;
 
         ImGui.BeginChild("##table"u8, new Vector2(ImGui.GetWindowWidth(), ImGui.GetWindowHeight() * 0.83f));
         if (ImGui.BeginTable("##entries"u8, 3, ImGuiTableFlags.SizingFixedFit))
@@ -191,15 +226,10 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
             }
 
             foreach ((string key, string text) in _tableUpdates)
-            {
                 _langEntries[key] = text;
-            }
             _tableUpdates.Clear();
-
             foreach (string key in _tableRemovals)
-            {
                 _langEntries.Remove(key);
-            }
             _tableRemovals.Clear();
 
             ImGui.EndTable();
