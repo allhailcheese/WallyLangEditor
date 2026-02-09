@@ -97,16 +97,16 @@ public static class Style
         style.Colors[(int)ImGuiCol.TextSelectedBg] = new(0.20f, 0.22f, 0.23f, 1.00f);
         style.Colors[(int)ImGuiCol.DragDropTarget] = new(0.33f, 0.67f, 0.86f, 1.00f);
 
-        // style.Colors[(int)ImGuiCol.TableRowBgAlt] = new Vector4(1.00f, 1.00f, 1.00f, 0.06f);
-        // style.Colors[(int)ImGuiCol.DockingEmptyBg] = new Vector4(1.00f, 0.00f, 0.00f, 1.00f);
-        // style.Colors[(int)ImGuiCol.PlotLines] = new Vector4(1.00f, 0.00f, 0.00f, 1.00f);
-        // style.Colors[(int)ImGuiCol.PlotLinesHovered] = new Vector4(1.00f, 0.00f, 0.00f, 1.00f);
-        // style.Colors[(int)ImGuiCol.PlotHistogram] = new Vector4(1.00f, 0.00f, 0.00f, 1.00f);
-        // style.Colors[(int)ImGuiCol.PlotHistogramHovered] = new Vector4(1.00f, 0.00f, 0.00f, 1.00f);
-        // style.Colors[(int)ImGuiCol.NavHighlight] = new Vector4(1.00f, 0.00f, 0.00f, 1.00f);
-        // style.Colors[(int)ImGuiCol.NavWindowingHighlight] = new Vector4(1.00f, 0.00f, 0.00f, 0.70f);
-        // style.Colors[(int)ImGuiCol.NavWindowingDimBg] = new Vector4(1.00f, 0.00f, 0.00f, 0.20f);
-        // style.Colors[(int)ImGuiCol.ModalWindowDimBg] = new Vector4(1.00f, 0.00f, 0.00f, 0.35f);
+        // style.Colors[(int)ImGuiCol.TableRowBgAlt] = new(1.00f, 1.00f, 1.00f, 0.06f);
+        // style.Colors[(int)ImGuiCol.DockingEmptyBg] = new(1.00f, 0.00f, 0.00f, 1.00f);
+        // style.Colors[(int)ImGuiCol.PlotLines] = new(1.00f, 0.00f, 0.00f, 1.00f);
+        // style.Colors[(int)ImGuiCol.PlotLinesHovered] = new(1.00f, 0.00f, 0.00f, 1.00f);
+        // style.Colors[(int)ImGuiCol.PlotHistogram] = new(1.00f, 0.00f, 0.00f, 1.00f);
+        // style.Colors[(int)ImGuiCol.PlotHistogramHovered] = new(1.00f, 0.00f, 0.00f, 1.00f);
+        // style.Colors[(int)ImGuiCol.NavHighlight] = new(1.00f, 0.00f, 0.00f, 1.00f);
+        // style.Colors[(int)ImGuiCol.NavWindowingHighlight] = new(1.00f, 0.00f, 0.00f, 0.70f);
+        // style.Colors[(int)ImGuiCol.NavWindowingDimBg] = new(1.00f, 0.00f, 0.00f, 0.20f);
+        // style.Colors[(int)ImGuiCol.ModalWindowDimBg] = new(1.00f, 0.00f, 0.00f, 0.35f);
     }
 
     private static void LoadDefaultImGuiIni(string resourceName)

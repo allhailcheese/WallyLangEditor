@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
@@ -23,6 +24,8 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
     }
 
     private SortedDictionary<string, string>? _langEntries = null;
+    private SortedSet<string> _pinnedKeys = null!;
+
     private LoadingStateEnum _loadingState = LoadingStateEnum.None;
     private string? _loadErrorMessage = null;
     private LoadingStateEnum _savingState = LoadingStateEnum.None;
@@ -56,8 +59,10 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
         if (ImGui.TreeNodeEx("Entries table"u8, ImGuiTreeNodeFlags.DefaultOpen))
         {
+            ImGui.Unindent();
             Table();
             ImGui.TreePop();
+            ImGui.Indent();
         }
     }
 
@@ -159,6 +164,9 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         ImGui.Checkbox("Case sensitive"u8, ref _filterTextCaseSensitive);
     }
 
+    private bool KeyMatchesFilter(string key) => key.Contains(_filterKey, StringComparison.CurrentCultureIgnoreCase);
+    private bool TextMatchesFilter(string text) => text.Contains(_filterText, _filterTextCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase);
+
     private string _newKey = "";
     private string _newText = "";
     private void AddNewEntry()
@@ -178,61 +186,106 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         ImGui.EndDisabled();
     }
 
-    private readonly Queue<(string key, string text)> _tableUpdates = [];
-    private readonly Queue<string> _tableRemovals = [];
+    private readonly Queue<(string key, string text)> _entryUpdates = [];
+    private readonly Queue<string> _entryRemovals = [];
+    private readonly Queue<string> _entryPins = [];
+    private readonly Queue<string> _entryUnpins = [];
     private void Table()
     {
         if (_langEntries is null)
             return;
 
         ImGui.BeginChild("##table"u8, new Vector2(ImGui.GetWindowWidth(), ImGui.GetWindowHeight() * 0.83f));
-        if (ImGui.BeginTable("##entries"u8, 3, ImGuiTableFlags.SizingFixedFit))
+        if (ImGui.BeginTable("##entries"u8, 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg))
         {
             ImGui.TableNextColumn();
             ImGui.TableHeader("String Key"u8);
             ImGui.TableNextColumn();
             ImGui.TableHeader("Text"u8);
             ImGui.TableNextColumn();
-            ImGui.TableHeader(""u8);
+            ImGui.TableHeader("##delete"u8);
+            ImGui.TableNextColumn();
+            ImGui.TableHeader("##pin"u8);
+
+            int index = 0;
+
+            foreach (string pinnedKey in _pinnedKeys)
+            {
+                TableRow(pinnedKey, _langEntries[pinnedKey], index++);
+            }
 
             foreach ((string key, string text) in _langEntries)
             {
-                if (!key.Contains(_filterKey, StringComparison.CurrentCultureIgnoreCase))
-                    continue;
-                // TODO: this should retrigger only on change, so text editing isn't annoying
-                if (!text.Contains(_filterText, _filterTextCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
+                if (_pinnedKeys.Contains(key) || !KeyMatchesFilter(key) || !TextMatchesFilter(text))
                     continue;
 
-                ImGui.PushID(key);
-                ImGui.TableNextRow();
-
-                ImGui.TableNextColumn();
-                ImGui.Text(key);
-
-                ImGui.TableNextColumn();
-                string text_ = text;
-                if (ImGui.InputTextMultiline("##text"u8, ref text_, MAX_TEXT_LENGTH, new Vector2(ImGui.GetWindowWidth() * 0.5f, 60)))
-                {
-                    _tableUpdates.Enqueue((key, text_));
-                }
-
-                ImGui.TableNextColumn();
-                if (ImGui.Button("Delete"u8))
-                {
-                    _tableRemovals.Enqueue(key);
-                }
-
-                ImGui.PopID();
+                TableRow(key, text, index++);
             }
-
-            while (_tableUpdates.TryDequeue(out (string key, string text) update))
-                _langEntries[update.key] = update.text;
-            while (_tableRemovals.TryDequeue(out string? toRemove))
-                _langEntries.Remove(toRemove);
 
             ImGui.EndTable();
         }
         ImGui.EndChild();
+
+        ProcessUpdateQueues();
+    }
+
+    private void TableRow(string key, string text, int index)
+    {
+        bool pinned = _pinnedKeys.Contains(key);
+
+        ImGui.PushID(key);
+        ImGui.TableNextRow();
+
+        ImGui.TableNextColumn();
+        if (pinned)
+        {
+            ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, BinaryPrimitives.ReverseEndianness(index % 2 == 0 ? 0xffaa00ff : 0xee9944ff));
+            ImGui.TextColored(new(0.2f, 0.2f, 0.2f, 1), key);
+        }
+        else
+        {
+            ImGui.Text(key);
+        }
+
+        ImGui.TableNextColumn();
+        string text_ = text;
+        if (ImGui.InputTextMultiline("##text"u8, ref text_, MAX_TEXT_LENGTH, new Vector2(ImGui.GetWindowWidth() * 0.5f, 60)))
+        {
+            _entryUpdates.Enqueue((key, text_));
+        }
+
+        ImGui.TableNextColumn();
+        if (ImGui.Button("Delete"u8))
+        {
+            _entryPins.Enqueue(key);
+        }
+
+        ImGui.TableNextColumn();
+        if (ImGui.Button(pinned ? "Unpin###pin"u8 : "Pin###pin"u8, new(50, 0)))
+        {
+            (pinned ? _entryUnpins : _entryPins).Enqueue(key);
+        }
+
+        ImGui.PopID();
+    }
+
+    private void ProcessUpdateQueues()
+    {
+        if (_langEntries is not null)
+        {
+            while (_entryUpdates.TryDequeue(out (string key, string text) update))
+                _langEntries[update.key] = update.text;
+            while (_entryRemovals.TryDequeue(out string? toRemove))
+                _langEntries.Remove(toRemove);
+        }
+
+        if (_entryPins is not null)
+        {
+            while (_entryPins.TryDequeue(out string? key))
+                _pinnedKeys.Add(key);
+            while (_entryUnpins.TryDequeue(out string? key))
+                _pinnedKeys.Remove(key);
+        }
     }
 
     private async Task LoadLang(CancellationToken cancellationToken = default)
@@ -245,6 +298,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
             {
                 LangFile langFile = await LangFile.LoadAsync(pathPrefs.FilePath, cancellationToken);
                 _langEntries = new(langFile.Entries);
+                _pinnedKeys = [];
                 _loadingState = LoadingStateEnum.Success;
             }
             catch (Exception e)
