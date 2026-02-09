@@ -5,12 +5,12 @@ BrawlhallaLangReader
 Copyright: 2024 AllHailCheese
 License: MIT
 
-NativeFileDialogSharp
-Copyright: milleniumbug
-License: Zlib
-
 nativefiledialog
 Copyright: 2014-2019 Frogtoss Games, Inc.
+License: Zlib
+
+NativeFileDialogSharp
+Copyright: milleniumbug
 License: Zlib
 
 raylib
@@ -25,13 +25,14 @@ imgui
 Copyright: 2014-2025 Omar Cornut
 License: MIT
 
-ImGui.NET
-Copyright: 2017 Eric Mellino and ImGui.NET contributors
+Hexa.NET.ImGui
+Copyright: 2022 Juna Meinhold
 License: MIT
 
 rlImGui-cs
 Copyright: 2020-2021 Jeffery Myers
 License: Zlib
+Modified to work with Hexa.NET.ImGui instead of ImGui.NET
 
 # MIT
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:

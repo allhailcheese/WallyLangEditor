@@ -13,7 +13,7 @@ namespace WallyLangEditor.Gui;
 
 public sealed class MainWindowContent(PathPreferences pathPrefs)
 {
-    private const uint maxTextLength = 4096;
+    private const uint MAX_TEXT_LENGTH = 4096;
     private enum LoadingStateEnum
     {
         None,
@@ -167,7 +167,7 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
             return;
 
         ImGui.InputText("Key"u8, ref _newKey, 256);
-        ImGui.InputTextMultiline("Text"u8, ref _newText, maxTextLength);
+        ImGui.InputTextMultiline("Text"u8, ref _newText, MAX_TEXT_LENGTH);
         ImGui.BeginDisabled(string.IsNullOrWhiteSpace(_newKey));
         if (ImGui.Button("Add"u8))
         {
@@ -178,8 +178,8 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
         ImGui.EndDisabled();
     }
 
-    private readonly List<(string key, string text)> _tableUpdates = [];
-    private readonly List<string> _tableRemovals = [];
+    private readonly Queue<(string key, string text)> _tableUpdates = [];
+    private readonly Queue<string> _tableRemovals = [];
     private void Table()
     {
         if (_langEntries is null)
@@ -211,26 +211,24 @@ public sealed class MainWindowContent(PathPreferences pathPrefs)
 
                 ImGui.TableNextColumn();
                 string text_ = text;
-                if (ImGui.InputTextMultiline("##text"u8, ref text_, maxTextLength, new Vector2(ImGui.GetWindowWidth() * 0.5f, 60)))
+                if (ImGui.InputTextMultiline("##text"u8, ref text_, MAX_TEXT_LENGTH, new Vector2(ImGui.GetWindowWidth() * 0.5f, 60)))
                 {
-                    _tableUpdates.Add((key, text_));
+                    _tableUpdates.Enqueue((key, text_));
                 }
 
                 ImGui.TableNextColumn();
                 if (ImGui.Button("Delete"u8))
                 {
-                    _tableRemovals.Add(key);
+                    _tableRemovals.Enqueue(key);
                 }
 
                 ImGui.PopID();
             }
 
-            foreach ((string key, string text) in _tableUpdates)
-                _langEntries[key] = text;
-            _tableUpdates.Clear();
-            foreach (string key in _tableRemovals)
-                _langEntries.Remove(key);
-            _tableRemovals.Clear();
+            while (_tableUpdates.TryDequeue(out (string key, string text) update))
+                _langEntries[update.key] = update.text;
+            while (_tableRemovals.TryDequeue(out string? toRemove))
+                _langEntries.Remove(toRemove);
 
             ImGui.EndTable();
         }
